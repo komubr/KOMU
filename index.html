@@ -220,13 +220,23 @@
   .pinned-by svg { fill: currentColor; stroke: none; }
   .notif-label svg { color: var(--accent); }
   .post-text { white-space: pre-wrap; word-wrap: break-word; margin: 2px 0 10px; }
+  .tr-btn { display: inline-flex; align-items: center; gap: 5px; color: var(--accent); font-size: 13px; font-weight: 600; margin: -4px 0 8px; padding: 2px 0; }
+  .tr-btn:hover { text-decoration: underline; }
+  .tr-btn svg { width: 15px; height: 15px; }
+  .tr-box { border-left: 3px solid var(--accent); background: var(--bg-soft); border-radius: 0 10px 10px 0; padding: 8px 12px; margin: 0 0 10px; }
+  .tr-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+  .tr-head button, .tr-head a { color: var(--accent); font-weight: 600; font-size: 12px; }
+  .tr-head button:hover, .tr-head a:hover { text-decoration: underline; }
+  .tr-text { white-space: pre-wrap; word-wrap: break-word; }
+  .tr-err { font-size: 14px; color: var(--text-muted); }
+  .dropdown .tr-on { color: var(--accent); }
   .post-text.clamp { display: -webkit-box; -webkit-line-clamp: 10; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 4px; }
   .show-more { color: var(--accent); font-weight: 600; font-size: 15px; margin: 0 0 10px; }
   .show-more:hover { text-decoration: underline; }
   .post-text:empty { display: none; }
-  .post-text .tag, .post-text .mention { color: var(--accent); cursor: pointer; }
-  .post-text .mention:hover, .post-text .tag:hover { text-decoration: underline; }
-  .post-text a.link { color: var(--accent); text-decoration: none; }
+  .post-text .tag, .post-text .mention, .tr-text .tag, .tr-text .mention { color: var(--accent); cursor: pointer; }
+  .post-text .mention:hover, .post-text .tag:hover, .tr-text .mention:hover, .tr-text .tag:hover { text-decoration: underline; }
+  .post-text a.link, .tr-text a.link { color: var(--accent); text-decoration: none; }
   .post-text a.link:hover { text-decoration: underline; }
   .replying-to { color: var(--text-muted); font-size: 14px; margin-top: 2px; }
   .replying-to .mention { color: var(--accent); cursor: pointer; }
@@ -1020,6 +1030,10 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
       requestsBanner1: "1 solicitação para seguir — toque para ver", requestsBannerN: "{n} solicitações para seguir — toque para ver",
       newNotif: "Nova notificação", newFollower: "Você tem um novo seguidor", newRequest: "Nova solicitação para seguir",
       newMessageFrom: "Nova mensagem de {name}",
+      translate: "Traduzir", translateTo: "Traduzir para", translatedFrom: "Traduzido do {from}", translatedTo: "para o {to}",
+      seeOriginal: "Ver original", openGoogle: "Abrir no Google Tradutor", translating: "Traduzindo…",
+      trSame: "Este post já está em {lang}.", trQuota: "O limite diário de traduções grátis acabou. Tente amanhã ou use o Google Tradutor.",
+      trError: "Não foi possível traduzir agora.",
       pinPost: "Fixar no topo do Início", unpinPost: "Desafixar do topo", pinnedLabel: "Fixado",
       pinnedOk: "Post fixado no topo do Início", unpinnedOk: "Post desafixado",
       pinPrivateWarn: "Este perfil é privado: só quem segue vai ver o post fixado. Fixar mesmo assim?",
@@ -1177,6 +1191,10 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
       requestsBanner1: "1 follow request — tap to see", requestsBannerN: "{n} follow requests — tap to see",
       newNotif: "New notification", newFollower: "You have a new follower", newRequest: "New follow request",
       newMessageFrom: "New message from {name}",
+      translate: "Translate", translateTo: "Translate to", translatedFrom: "Translated from {from}", translatedTo: "to {to}",
+      seeOriginal: "Show original", openGoogle: "Open in Google Translate", translating: "Translating…",
+      trSame: "This post is already in {lang}.", trQuota: "The daily limit of free translations is used up. Try tomorrow or use Google Translate.",
+      trError: "Couldn't translate right now.",
       pinPost: "Pin to top of Home", unpinPost: "Unpin from top", pinnedLabel: "Pinned",
       pinnedOk: "Post pinned to the top of Home", unpinnedOk: "Post unpinned",
       pinPrivateWarn: "This profile is private: only followers will see the pinned post. Pin anyway?",
@@ -1288,6 +1306,8 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
     followsTab: "followers", followsList: null,
     recovery: /type=recovery/.test(location.hash),
     lastDmUnread: null,
+    tr: new Map(),                   // traduções: "id|lang" -> { text, from } | { err }
+    trOpen: new Map(),               // post id -> idioma da tradução aberta
     pinned: [],                      // posts fixados pelos admins (topo do Início)
     members: null,                   // número de contas (rpc member_count)
     settings: null,                  // site_settings: public_read, invite_only, invite_quota
@@ -1351,6 +1371,7 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
     lock: '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
     shield: '<svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6z"/><path d="m9 12 2 2 4-4"/></svg>',
     flag: '<svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
+    globe: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/></svg>',
     pin: '<svg viewBox="0 0 24 24"><path d="M15 3l6 6-3 1-4 4 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 4-4z"/></svg>',
     userPlus: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6M19 8v6M16 11h6"/></svg>',
     at: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg>',
@@ -1456,6 +1477,7 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
           ${p.reply_to_username && !opts.compact ? `<div class="replying-to">${esc(t("replyingTo"))} <span class="mention" data-username="${esc(p.reply_to_username)}">@${esc(p.reply_to_username)}</span></div>` : ""}
           <div class="post-text ${isLong(p.content) && !opts.main ? "clamp" : ""}">${richText(p.content || "")}</div>
           ${isLong(p.content) && !opts.main ? `<button class="show-more" data-action="expand">${esc(t("showMore"))}</button>` : ""}
+          ${p.content && !opts.compact ? trHTML(p) : ""}
           ${mediaHTML(p.media)}
           ${opts.compact ? "" : `
           <div class="actions">
@@ -1654,6 +1676,108 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
     } finally {
       if (seq === loadSeq) { state.loading = false; renderTimeline(); }
     }
+  }
+
+  /* ---------------- Tradução dos posts (MyMemory, grátis, sem chave) ---------------- */
+  const TR_LANGS = [["pt", "Português"], ["en", "English"], ["es", "Español"], ["it", "Italiano"], ["fr", "Français"]];
+  const TR_NAMES = {
+    pt: { pt: "português", en: "inglês", es: "espanhol", it: "italiano", fr: "francês" },
+    en: { pt: "Portuguese", en: "English", es: "Spanish", it: "Italian", fr: "French" },
+  };
+  const langName = (code) => (TR_NAMES[lang] || TR_NAMES.pt)[String(code || "").slice(0, 2).toLowerCase()] || code;
+  const googleTrLink = (text, to) => "https://translate.google.com/?sl=auto&tl=" + to + "&op=translate&text=" + encodeURIComponent(text.slice(0, 1800));
+  function trHTML(p) {
+    const lang = state.trOpen.get(p.id);
+    const btn = `<button class="tr-btn" data-action="translate">${ICONS.globe} ${esc(t("translate"))}</button>`;
+    if (!lang) return btn;
+    const r = state.tr.get(p.id + "|" + lang);
+    const google = `<a href="${esc(googleTrLink(p.content, lang))}" target="_blank" rel="noopener">${esc(t("openGoogle"))}</a>`;
+    if (!r) return `<div class="tr-box"><div class="tr-head">${ICONS.globe} ${esc(t("translating"))}</div></div>`;
+    if (r.err) return `<div class="tr-box"><p class="tr-err">${esc(r.err)}</p><div class="tr-head"><button data-action="tr-close">${esc(t("seeOriginal"))}</button>${google}</div></div>`;
+    return `<div class="tr-box"><div class="tr-head"><span>${esc(t("translatedFrom", { from: langName(r.from) }))} ${esc(t("translatedTo", { to: langName(lang) }))}</span>
+      <button data-action="tr-close">${esc(t("seeOriginal"))}</button>${google}</div><div class="tr-text">${richText(r.text)}</div></div>`;
+  }
+  // divide em pedaços de até 450 caracteres (limite do serviço é 500), sem cortar linhas nem frases
+  function trChunks(text) {
+    const out = [];
+    text.split("\n").forEach((line, li) => {
+      const parts = [];
+      let cur = "";
+      const push = (x) => { if (cur && (cur + " " + x).length > 450) { parts.push(cur); cur = x; } else cur = cur ? cur + " " + x : x; };
+      line.split(/(?<=[.!?…])\s+/).forEach((sent) => {
+        if (sent.length <= 450) return push(sent);
+        sent.split(/\s+/).forEach((w) => { while (w.length > 450) { push(w.slice(0, 450)); w = w.slice(450); } push(w); });
+      });
+      if (cur) parts.push(cur);
+      out.push({ line: li, parts });
+    });
+    return out;
+  }
+  async function trCall(q, to) {
+    const r = await fetch("https://api.mymemory.translated.net/get?q=" + encodeURIComponent(q) + "&langpair=autodetect|" + to);
+    const j = await r.json();
+    const txt = (j.responseData && j.responseData.translatedText) || "";
+    if (j.quotaFinished || /MYMEMORY WARNING/i.test(txt)) throw Object.assign(new Error("quota"), { quota: true });
+    if (/DISTINCT LANGUAGES/i.test(txt) || /DISTINCT LANGUAGES/i.test(j.responseDetails || "")) throw Object.assign(new Error("same"), { same: true });
+    if (String(j.responseStatus) !== "200") throw new Error(j.responseDetails || txt || "erro");
+    return { text: txt, from: j.responseData.detectedLanguage || "" };
+  }
+  async function translatePost(post, to) {
+    const key = post.id + "|" + to;
+    try { localStorage.setItem("komu:trLang", to); } catch {}
+    state.trOpen.set(post.id, to);
+    if (!state.tr.has(key) || state.tr.get(key).err) {
+      state.tr.delete(key); refreshPost(post.id);
+      try {
+        const blocks = trChunks(post.content);
+        let from = "";
+        const lines = [];
+        for (const b of blocks) {
+          const done = [];
+          for (const part of b.parts) {
+            if (!/[\p{L}]/u.test(part)) { done.push(part); continue; }   // só emoji, link ou número: mantém
+            const r = await trCall(part, to);
+            done.push(r.text); if (!from && r.from) from = r.from;
+          }
+          lines[b.line] = done.join(" ");
+        }
+        if (from && from.slice(0, 2).toLowerCase() === to) throw Object.assign(new Error("same"), { same: true });
+        const decoded = lines.join("\n").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+        state.tr.set(key, { text: decoded, from: from || "?" });
+      } catch (e) {
+        console.error(e);
+        state.tr.set(key, { err: e.same ? t("trSame", { lang: langName(to) }) : e.quota ? t("trQuota") : t("trError") });
+      }
+    }
+    refreshPost(post.id);
+  }
+  // redesenha só o post (todas as cópias na tela), sem recarregar a lista
+  function refreshPost(id) {
+    const p = state.pinned.find((x) => x.id === id) || state.posts.find((x) => x.id === id);
+    if (!p) return;
+    document.querySelectorAll(`#timeline article.post[data-id="${CSS.escape(id)}"]`).forEach((art) => {
+      const old = art.querySelector(".tr-box, .tr-btn");
+      if (!old) return;
+      const tmp = document.createElement("div"); tmp.innerHTML = trHTML(p);
+      old.replaceWith(tmp.firstElementChild);
+    });
+  }
+  function openTrMenu(btn, post) {
+    closeDropdown();
+    let last = lang; try { last = localStorage.getItem("komu:trLang") || lang; } catch {}
+    dropdown = document.createElement("div");
+    dropdown.className = "dropdown";
+    dropdown.innerHTML = `<div class="tr-head" style="padding:10px 16px 4px">${esc(t("translateTo"))}</div>` +
+      TR_LANGS.map(([c, n]) => `<button data-tr="${c}" class="${c === last ? "tr-on" : ""}">${esc(n)}</button>`).join("");
+    document.body.appendChild(dropdown);
+    const r = btn.getBoundingClientRect(), w = dropdown.offsetWidth;
+    dropdown.style.top = Math.min(r.bottom + 4, innerHeight - dropdown.offsetHeight - 8) + "px";
+    dropdown.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
+    dropdown.addEventListener("click", (e) => {
+      const c = e.target.closest("[data-tr]")?.dataset.tr;
+      if (!c) return;
+      closeDropdown(); translatePost(post, c);
+    });
   }
 
   async function loadPinned() {
@@ -3515,7 +3639,7 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
       }
     });
   }
-  document.addEventListener("click", (e) => { if (dropdown && !e.target.closest(".dropdown") && !e.target.closest("[data-action=menu]")) closeDropdown(); });
+  document.addEventListener("click", (e) => { if (dropdown && !e.target.closest(".dropdown") && !e.target.closest("[data-action=menu]") && !e.target.closest("[data-action=translate]")) closeDropdown(); });
   addEventListener("scroll", closeDropdown, { passive: true });
 
   function copy(text, okMsg) {
@@ -3643,6 +3767,10 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
       sharePost(post);
     } else if (act === "menu") {
       e.stopPropagation(); openMenu(btn, post);
+    } else if (act === "translate") {
+      e.stopPropagation(); openTrMenu(btn, post);
+    } else if (act === "tr-close") {
+      state.trOpen.delete(id); refreshPost(id);
     }
   });
   $("#lightbox").addEventListener("click", () => $("#lightbox").classList.remove("open"));
