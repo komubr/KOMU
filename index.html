@@ -214,6 +214,10 @@
   .post-wrap .post { border-bottom: none; padding-top: 0; }
   .reposted-by, .notif-label { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; font-weight: 600; padding: 0 0 4px 44px; }
   .reposted-by svg, .notif-label svg { width: 15px; height: 15px; }
+  .pinned-wrap { background: var(--accent-soft); }
+  .pinned-wrap .post { background: transparent; }
+  .pinned-by { color: var(--accent); }
+  .pinned-by svg { fill: currentColor; stroke: none; }
   .notif-label svg { color: var(--accent); }
   .post-text { white-space: pre-wrap; word-wrap: break-word; margin: 2px 0 10px; }
   .post-text.clamp { display: -webkit-box; -webkit-line-clamp: 10; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 4px; }
@@ -476,6 +480,15 @@
   .gate-box p { color: var(--text-muted); margin-bottom: 24px; }
   .gate-box .btn-primary, .gate-box .btn-outline { width: 100%; height: 48px; font-size: 16px; justify-content: center; margin-bottom: 10px; }
   .gate-box .seg { margin-top: 18px; }
+  .gate-count { margin: -8px 0 22px; font-size: 15px; color: var(--text-muted); }
+  .gate-count b { color: var(--accent); font-size: 22px; font-weight: 800; }
+  .members-panel { padding: 14px 16px; display: flex; align-items: center; gap: 14px; }
+  .members-panel .num { font-size: 34px; font-weight: 800; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .members-panel .lbl { font-size: 14px; color: var(--text-muted); line-height: 1.25; }
+  .members-panel .lbl b { display: block; color: var(--text); font-size: 15px; }
+  .member-strip { display: none; padding: 10px 16px; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--text-muted); }
+  .member-strip b { color: var(--accent); font-weight: 800; }
+  @media (max-width: 1020px) { .member-strip.on { display: block; } }
   body.gated .app, body.gated .bottom-nav, body.gated .fab { display: none !important; }
 
   /* Convites */
@@ -559,6 +572,7 @@
     <span class="wordmark" role="img" aria-label="KOMU"></span>
     <h1 data-i18n="gateTitle"></h1>
     <p data-i18n="gateText"></p>
+    <p class="gate-count" id="gateCount" hidden></p>
     <button class="btn-primary" data-open-auth data-i18n="login"></button>
     <button class="btn-outline" id="gateInvite" data-i18n="haveInvite"></button>
     <div class="seg"><button type="button" data-lang="pt">Português</button><button type="button" data-lang="en">English</button></div>
@@ -601,6 +615,7 @@
       </div>
     </header>
 
+    <div class="member-strip" id="memberStrip"></div>
     <div id="profileHead"></div>
 
     <div class="login-cta" id="loginCta" hidden>
@@ -615,6 +630,7 @@
   </main>
 
   <aside class="aside">
+    <div class="panel members-panel" id="membersPanel" hidden></div>
     <div class="panel"><h2 data-i18n="trendsTitle"></h2><div id="trends"></div></div>
     <div class="panel"><h2 data-i18n="whoToFollow"></h2><div id="whoToFollow"></div></div>
     <p class="footer-links" data-i18n="footer"></p>
@@ -1004,6 +1020,10 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
       requestsBanner1: "1 solicitação para seguir — toque para ver", requestsBannerN: "{n} solicitações para seguir — toque para ver",
       newNotif: "Nova notificação", newFollower: "Você tem um novo seguidor", newRequest: "Nova solicitação para seguir",
       newMessageFrom: "Nova mensagem de {name}",
+      pinPost: "Fixar no topo do Início", unpinPost: "Desafixar do topo", pinnedLabel: "Fixado",
+      pinnedOk: "Post fixado no topo do Início", unpinnedOk: "Post desafixado",
+      pinPrivateWarn: "Este perfil é privado: só quem segue vai ver o post fixado. Fixar mesmo assim?",
+      errAdminOnly: "Só admins podem fazer isso.",
       report: "Denunciar", reportTitle: "Denunciar post", reportWhy: "Por que você está denunciando este post?",
       rSpam: "Spam ou golpe", rOdio: "Discurso de ódio", rAssedio: "Assédio ou bullying", rViolencia: "Violência ou ameaça",
       rSexual: "Conteúdo sexual", rDesinfo: "Desinformação", rOutro: "Outro motivo",
@@ -1027,6 +1047,9 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
       setupTitle: "Falta conectar o banco de dados",
       setupText: "Preencha SUPABASE_URL e SUPABASE_KEY no começo do script do index.html.",
       showMore: "Mostrar mais", showLess: "Mostrar menos",
+      gateCount: "Já somos <b>{n}</b> na KOMU", gateCount1: "Já somos <b>1</b> na KOMU",
+      membersTitle: "Membros", membersLabel: "pessoas fazem parte da KOMU", membersLabel1: "pessoa faz parte da KOMU",
+      memberStrip: "<b>{n}</b> pessoas fazem parte da KOMU", memberStrip1: "<b>1</b> pessoa faz parte da KOMU",
       gateTitle: "A KOMU é uma comunidade só para convidados",
       gateText: "Para entrar, você precisa de uma conta ou de um convite de alguém que já faz parte.",
       haveInvite: "Tenho um convite",
@@ -1154,6 +1177,10 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
       requestsBanner1: "1 follow request — tap to see", requestsBannerN: "{n} follow requests — tap to see",
       newNotif: "New notification", newFollower: "You have a new follower", newRequest: "New follow request",
       newMessageFrom: "New message from {name}",
+      pinPost: "Pin to top of Home", unpinPost: "Unpin from top", pinnedLabel: "Pinned",
+      pinnedOk: "Post pinned to the top of Home", unpinnedOk: "Post unpinned",
+      pinPrivateWarn: "This profile is private: only followers will see the pinned post. Pin anyway?",
+      errAdminOnly: "Only admins can do this.",
       report: "Report", reportTitle: "Report post", reportWhy: "Why are you reporting this post?",
       rSpam: "Spam or scam", rOdio: "Hate speech", rAssedio: "Harassment or bullying", rViolencia: "Violence or threats",
       rSexual: "Sexual content", rDesinfo: "Misinformation", rOutro: "Something else",
@@ -1177,6 +1204,9 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
       setupTitle: "The database isn't connected yet",
       setupText: "Fill in SUPABASE_URL and SUPABASE_KEY at the top of the script in index.html.",
       showMore: "Show more", showLess: "Show less",
+      gateCount: "<b>{n}</b> people are already on KOMU", gateCount1: "<b>1</b> person is already on KOMU",
+      membersTitle: "Members", membersLabel: "people are part of KOMU", membersLabel1: "person is part of KOMU",
+      memberStrip: "<b>{n}</b> people are part of KOMU", memberStrip1: "<b>1</b> person is part of KOMU",
       gateTitle: "KOMU is an invite-only community",
       gateText: "To get in, you need an account or an invite from someone who's already a member.",
       haveInvite: "I have an invite",
@@ -1258,6 +1288,8 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
     followsTab: "followers", followsList: null,
     recovery: /type=recovery/.test(location.hash),
     lastDmUnread: null,
+    pinned: [],                      // posts fixados pelos admins (topo do Início)
+    members: null,                   // número de contas (rpc member_count)
     settings: null,                  // site_settings: public_read, invite_only, invite_quota
     inviteCode: null, inviteCheck: null,
   };
@@ -1319,6 +1351,7 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
     lock: '<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
     shield: '<svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6z"/><path d="m9 12 2 2 4-4"/></svg>',
     flag: '<svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
+    pin: '<svg viewBox="0 0 24 24"><path d="M15 3l6 6-3 1-4 4 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 4-4z"/></svg>',
     userPlus: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-6 7-6s7 2 7 6M19 8v6M16 11h6"/></svg>',
     at: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg>',
     mail: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',
@@ -1338,6 +1371,7 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
   function errMsg(base, e) {
     const m = (e && (e.message || e.error_description || e.error || e.msg)) || "";
     if (/bucket not found/i.test(m)) return t("errNoBucket");
+    if (/KOMU_ADMIN_ONLY/.test(m)) return t("errAdminOnly");
     if (/KOMU_QUOTA/.test(m)) return t("errQuota", { n: (state.settings && state.settings.invite_quota) || 13 });
     if (/KOMU_GROUP_ADMIN_ONLY/.test(m)) return t("errGroupAdmin");
     if (/KOMU_MFA_REQUIRED/.test(m)) return t("errMfaInvite");
@@ -1437,6 +1471,7 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
       const icon = opts.notif === "reply" ? ICONS.reply : ICONS.at;
       return `<div class="post-wrap"><div class="notif-label">${icon} ${esc(t(opts.notif === "reply" ? "repliedYou" : "mentionedYou", { name: p.name }))}</div>${article}</div>`;
     }
+    if (opts.pinned) return `<div class="post-wrap pinned-wrap"><div class="reposted-by pinned-by">${ICONS.pin} ${esc(t("pinnedLabel"))}</div>${article}</div>`;
     if (opts.repostBy) return `<div class="post-wrap"><div class="reposted-by">${ICONS.repost} ${esc(t("repostedBy", { name: opts.repostBy }))}</div>${article}</div>`;
     return article;
   }
@@ -1458,8 +1493,26 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
     // banco ainda sem convites: comporta-se como antes (aberto, sem convite)
     state.settings = error || !data ? { public_read: true, invite_only: false, invite_quota: 13, legacy: true } : data;
   }
+  async function loadMemberCount() {
+    try {
+      const { data, error } = await sb.rpc("member_count");
+      state.members = error || data == null ? null : Number(data);
+    } catch { state.members = null; }
+    renderMemberCount();
+  }
+  function renderMemberCount() {
+    const n = state.members, has = n != null && n > 0;
+    const f = has ? n.toLocaleString(locale()) : "";
+    $("#gateCount").hidden = !has;
+    $("#membersPanel").hidden = !has;
+    $("#memberStrip").classList.toggle("on", has && state.view === "home");
+    if (!has) return;
+    $("#gateCount").innerHTML = n === 1 ? t("gateCount1") : t("gateCount", { n: esc(f) });
+    $("#membersPanel").innerHTML = `<span class="num">${esc(f)}</span><span class="lbl"><b>${esc(t("membersTitle"))}</b>${esc(t(n === 1 ? "membersLabel1" : "membersLabel"))}</span>`;
+    $("#memberStrip").innerHTML = n === 1 ? t("memberStrip1") : t("memberStrip", { n: esc(f) });
+  }
   function renderAll() {
-    renderGate();
+    renderGate(); renderMemberCount();
     renderMe(); renderNav(); renderProfileHead(); renderTimeline();
     renderTrends(); renderFollow(); renderNewPosts(); renderBadges();
   }
@@ -1509,7 +1562,13 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
       top = `<button class="req-banner" data-open-settings>${ICONS.lock} ${esc(state.requests.length === 1 ? t("requestsBanner1") : t("requestsBannerN", { n: state.requests.length }))}</button>`;
     }
 
-    const posts = state.posts.filter((p) => !state.reported.has(p.id));
+    let pinnedIds = null;
+    if (v === "home" && state.pinned.length) {
+      const pins = state.pinned.filter((p) => !state.reported.has(p.id));
+      pinnedIds = new Set(pins.map((p) => p.id));
+      top += pins.map((p) => postHTML(p, { pinned: true })).join("");
+    }
+    const posts = state.posts.filter((p) => !state.reported.has(p.id) && !(pinnedIds && pinnedIds.has(p.id)));
     const follows = v === "notifications" ? state.followNotifs : [];
     const likesN = v === "notifications" ? state.likeNotifs : [];
     if (state.loading && !posts.length && !follows.length && !likesN.length) { tl.innerHTML = top + '<div class="spinner"></div>'; return; }
@@ -1552,6 +1611,7 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
 
       if (v === "home") {
         q = q.is("reply_to", null);
+        if (!more) loadPinned();
         if (state.tab === "following") {
           // só quem você segue (sem os seus próprios posts)
           const ids = [...state.following].filter(([, s]) => s === "accepted").map(([id]) => id);
@@ -1594,6 +1654,22 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
     } finally {
       if (seq === loadSeq) { state.loading = false; renderTimeline(); }
     }
+  }
+
+  async function loadPinned() {
+    let list = [];
+    try {
+      if (sb && (state.me || (state.settings && state.settings.public_read))) {
+        const { data: pins, error } = await sb.from("pinned_posts").select("post_id,pinned_at").order("pinned_at", { ascending: false }).limit(5);
+        if (!error && pins && pins.length) {
+          const { data } = await sb.from("feed").select("*").in("id", pins.map((x) => x.post_id));
+          const M = new Map((data || []).map((p) => [p.id, p]));
+          list = pins.map((x) => M.get(x.post_id)).filter(Boolean);
+        }
+      }
+    } catch (e) { console.error(e); }
+    state.pinned = list;
+    if (state.view === "home") renderTimeline();
   }
 
   async function loadPeople(s) {
@@ -2061,6 +2137,7 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
   }
 
   function renderNav() {
+    renderMemberCount();
     const v = state.view;
     const titles = {
       home: t("home"), explore: t("explore"), liked: t("liked"), bookmarks: t("bookmarks"), notifications: t("notifications"),
@@ -3406,6 +3483,7 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
     dropdown.innerHTML = (mine ? `<button class="danger" data-m="delete">${ICONS.trash} ${esc(t("del"))}</button>` : "") +
       `<button data-m="link">${ICONS.link} ${esc(t("copyLink"))}</button>` +
       (post.content ? `<button data-m="copy">${ICONS.copy} ${esc(t("copyText"))}</button>` : "") +
+      (state.me && state.me.is_admin && !post.reply_to ? `<button data-m="${state.pinned.some((p) => p.id === post.id) ? "unpin" : "pin"}">${ICONS.pin} ${esc(t(state.pinned.some((p) => p.id === post.id) ? "unpinPost" : "pinPost"))}</button>` : "") +
       (!mine ? `<button class="danger" data-m="report">${ICONS.flag} ${esc(t("report"))}</button>` : "");
     document.body.appendChild(dropdown);
     const r = btn.getBoundingClientRect(), w = dropdown.offsetWidth;
@@ -3421,12 +3499,20 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
         toast(t("deleted"));
         if (state.view === "post" && state.postId === post.id) return goBack();
         state.posts = state.posts.filter((p) => p.id !== post.id);
+        state.pinned = state.pinned.filter((p) => p.id !== post.id);
         if (state.view === "post") loadPostView(); else renderTimeline();
         loadTrends();
       }
       if (m === "copy") copy(post.content, t("copied"));
       if (m === "link") copy(postLink(post.id), t("linkCopied"));
       if (m === "report") openReport(post);
+      if (m === "pin" || m === "unpin") {
+        if (m === "pin" && post.is_private && !confirm(t("pinPrivateWarn"))) return;
+        const { error } = await sb.rpc(m === "pin" ? "pin_post" : "unpin_post", { p_post: post.id });
+        if (error) return toast(errMsg(t("saveError"), error));
+        toast(t(m === "pin" ? "pinnedOk" : "unpinnedOk"));
+        await loadPinned();
+      }
     });
   }
   document.addEventListener("click", (e) => { if (dropdown && !e.target.closest(".dropdown") && !e.target.closest("[data-action=menu]")) closeDropdown(); });
@@ -3523,7 +3609,7 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
       return;
     }
     const id = art.dataset.id;
-    const post = state.posts.find((p) => p.id === id);
+    const post = (art.closest(".pinned-wrap") && state.pinned.find((p) => p.id === id)) || state.posts.find((p) => p.id === id) || state.pinned.find((p) => p.id === id);
     if (!post) return;
     const act = btn.dataset.action;
 
@@ -3658,6 +3744,8 @@ const SUPABASE_KEY = "sb_publishable_SdJhnrXFPNtRDe_lEcxy7w_osPmbKmq";
 
     await loadSettings();
     renderGate();
+    loadMemberCount();
+    setInterval(loadMemberCount, 5 * 60e3);
     await syncAuth();
     renderAll();
     const pid = new URLSearchParams(location.search).get("post");
